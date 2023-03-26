@@ -36,7 +36,14 @@ func array(str string, len int) []byte {
 	return []byte(addEndDelimiter(prefixArray + fmt.Sprint(len) + str))
 }
 
-var ErrInvalidCommand = errors.New("invalid command")
+var (
+	ErrInvalidCommand = errors.New("invalid command")
+
+	validCmd = map[string]struct{}{
+		commandPing: {},
+		commandEcho: {},
+	}
+)
 
 type command struct {
 	cmd     string
@@ -76,10 +83,6 @@ func ParseCommand(b []byte) (*command, error) {
 		strList    = strings.Split(str, delimiter)
 		dataHeader = strList[0]
 		cmd        = strings.ToUpper(strList[2])
-		validCmd   = map[string]struct{}{
-			commandPing: {},
-			commandEcho: {},
-		}
 	)
 
 	err := func() error {
