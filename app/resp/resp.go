@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ShingoYadomoto/codecrafters-redis-go/app/store"
 )
@@ -85,9 +86,19 @@ func (c *command) set() ([]byte, error) {
 		args       = strings.Split(c.argsStr, delimiter)
 		key, value = args[1], args[3]
 		st         = store.GetStore()
+		expiry     time.Duration
 	)
 
-	st.Store(key, value)
+	if len(args) >= 7 && strings.ToUpper(args[5]) == "PX" {
+		expiryMilliSecStr := args[7]
+		expiryMilliSec, err := strconv.Atoi(expiryMilliSecStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid expiry format. expiry: %s", expiryMilliSecStr)
+		}
+		expiry = time.Duration(expiryMilliSec) * time.Millisecond
+	}
+
+	st.Store(key, value, expiry)
 
 	return simpleStrings("OK"), nil
 }
