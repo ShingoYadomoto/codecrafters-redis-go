@@ -48,6 +48,10 @@ func array(str string, len int) []byte {
 	return join(l)
 }
 
+func nullBulkString() []byte {
+	return []byte("$-1\r\n")
+}
+
 var (
 	ErrInvalidCommand = errors.New("invalid command")
 
@@ -88,6 +92,21 @@ func (c *command) set() ([]byte, error) {
 	return simpleStrings("OK"), nil
 }
 
+func (c *command) get() ([]byte, error) {
+	var (
+		args = strings.Split(c.argsStr, delimiter)
+		key  = args[1]
+		st   = store.GetStore()
+	)
+
+	val, ok := st.Load(key)
+	if !ok {
+		return nullBulkString(), nil
+	}
+
+	return simpleStrings(fmt.Sprint(val)), nil
+}
+
 func (c *command) Response() ([]byte, error) {
 	switch c.cmd {
 	case commandPing:
@@ -96,6 +115,8 @@ func (c *command) Response() ([]byte, error) {
 		return c.echo()
 	case commandSet:
 		return c.set()
+	case commandGet:
+		return c.get()
 	}
 	return nil, ErrInvalidCommand
 }
