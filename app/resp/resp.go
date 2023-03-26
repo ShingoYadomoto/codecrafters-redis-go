@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"github.com/ShingoYadomoto/codecrafters-redis-go/app/store"
 )
 
 const (
@@ -18,6 +20,8 @@ const (
 
 	commandPing = "PING"
 	commandEcho = "ECHO"
+	commandGet  = "GET"
+	commandSet  = "SET"
 )
 
 func addEndDelimiter(str string) string {
@@ -50,6 +54,8 @@ var (
 	validCmd = map[string]struct{}{
 		commandPing: {},
 		commandEcho: {},
+		commandGet:  {},
+		commandSet:  {},
 	}
 )
 
@@ -70,17 +76,31 @@ func (c *command) echo() ([]byte, error) {
 	return []byte(c.argsStr), nil
 }
 
+func (c *command) set() ([]byte, error) {
+	var (
+		args       = strings.Split(c.argsStr, delimiter)
+		key, value = args[1], args[3]
+		st         = store.GetStore()
+	)
+
+	st.Store(key, value)
+
+	return simpleStrings("OK"), nil
+}
+
 func (c *command) Response() ([]byte, error) {
 	switch c.cmd {
 	case commandPing:
 		return c.ping()
 	case commandEcho:
 		return c.echo()
+	case commandSet:
+		return c.set()
 	}
 	return nil, ErrInvalidCommand
 }
 
-// ParseCommand supports ECHO and PING commands only
+// ParseCommand supports ECHO and PING and SET and GET commands only
 func ParseCommand(b []byte) (*command, error) {
 	var (
 		str        = strings.TrimRight(string(b), "\x00")
