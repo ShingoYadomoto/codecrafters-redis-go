@@ -32,8 +32,16 @@ func simpleStrings(str string) []byte {
 	return []byte(addEndDelimiter(prefixSimpleStrings + str))
 }
 
+func join(strl []string) []byte {
+	return []byte(addEndDelimiter(strings.Join(strl, delimiter)))
+}
+
 func array(str string, len int) []byte {
-	return []byte(addEndDelimiter(prefixArray + fmt.Sprint(len) + str))
+	l := []string{
+		prefixArray + fmt.Sprint(len),
+		str,
+	}
+	return join(l)
 }
 
 var (
@@ -51,10 +59,6 @@ type command struct {
 	argsLen int
 }
 
-func (c *command) join(strl []string) []byte {
-	return []byte(strings.Join(strl, delimiter) + delimiter)
-}
-
 func (c *command) ping() ([]byte, error) {
 	if c.argsStr == "" {
 		return simpleStrings("PONG"), nil
@@ -63,7 +67,7 @@ func (c *command) ping() ([]byte, error) {
 }
 
 func (c *command) echo() ([]byte, error) {
-	return array(c.argsStr, c.argsLen), nil
+	return []byte(c.argsStr), nil
 }
 
 func (c *command) Response() ([]byte, error) {

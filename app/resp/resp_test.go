@@ -75,8 +75,16 @@ func Test_command_Response(t *testing.T) {
 				argsStr: "",
 				argsLen: 0,
 			},
-			want:    []byte("+PONG\r\n"),
-			wantErr: false,
+			want: []byte("+PONG\r\n"),
+		},
+		{
+			name: "echo world",
+			fields: fields{
+				cmd:     "ECHO",
+				argsStr: "$5\r\nworld\r\n",
+				argsLen: 1,
+			},
+			want: []byte("$5\r\nworld\r\n"),
 		},
 	}
 	for _, tt := range tests {
