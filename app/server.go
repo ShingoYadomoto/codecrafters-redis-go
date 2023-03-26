@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"os"
 
@@ -11,18 +12,23 @@ import (
 func serve(conn net.Conn) {
 	defer conn.Close()
 
-	// ToDO: analyze request bytes
-	b := make([]byte, 1024)
-	_, err := conn.Read(b)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	for {
+		// ToDO: analyze request bytes
+		b := make([]byte, 1024)
+		_, err := conn.Read(b)
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			fmt.Println(err)
+			os.Exit(1)
+		}
 
-	_, err = conn.Write(resp.SimpleStrings("PONG"))
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		_, err = conn.Write(resp.SimpleStrings("PONG"))
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 	}
 }
 
