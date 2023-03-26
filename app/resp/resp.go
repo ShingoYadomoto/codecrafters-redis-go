@@ -1,6 +1,7 @@
 package resp
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -13,64 +14,119 @@ const (
 	prefixBulkStrings   = "$"
 	prefixArray         = "*"
 
-	delimiter = `\r\n`
-)
+	delimiter = "\r\n"
 
-func SimpleStrings(str string) []byte {
-	return []byte(prefixSimpleStrings + str + delimiter)
-}
-
-const (
 	commandPing = "PING"
 	commandEcho = "ECHO"
 )
 
-type command struct {
-	cmd  string
-	args []string
+func addEndDelimiter(str string) string {
+	if strings.HasSuffix(str, delimiter) {
+		return str
+	}
+
+	return str + delimiter
 }
 
-func (c *command) Cmd() string {
-	return c.cmd
+func simpleStrings(str string) []byte {
+	return []byte(addEndDelimiter(prefixSimpleStrings + str))
+}
+
+func array(str string, len int) []byte {
+	return []byte(addEndDelimiter(prefixArray + fmt.Sprint(len) + str))
+}
+
+var ErrInvalidCommand = errors.New("invalid command")
+
+type command struct {
+	cmd     string
+	argsStr string
+	argsLen int
+}
+
+func (c *command) join(strl []string) []byte {
+	return []byte(strings.Join(strl, delimiter) + delimiter)
+}
+
+func (c *command) ping() ([]byte, error) {
+	if c.argsStr == "" {
+		return simpleStrings("PONG"), nil
+	}
+	return array(c.argsStr, c.argsLen), nil
+}
+
+func (c *command) echo() ([]byte, error) {
+	return array(c.argsStr, c.argsLen), nil
+}
+
+func (c *command) Response() ([]byte, error) {
+	switch c.cmd {
+	case commandPing:
+		return c.ping()
+	case commandEcho:
+		return c.echo()
+	}
+	return nil, ErrInvalidCommand
 }
 
 // ParseCommand supports ECHO and PING commands only
 func ParseCommand(b []byte) (*command, error) {
-	strList := strings.Split(string(b), delimiter)
-	strList = strList[:len(strList)-1] // 末尾は空文字になるので削除
+	var (
+		str        = strings.TrimRight(string(b), "\x00")
+		strList    = strings.Split(str, delimiter)
+		dataHeader = strList[0]
+		cmd        = strings.ToUpper(strList[2])
+		validCmd   = map[string]struct{}{
+			commandPing: {},
+			commandEcho: {},
+		}
+	)
 
-	dataType, dataLenStr, strList := strList[0][:1], strList[0][1:], strList[1:]
-	if dataType != prefixArray {
-		return nil, fmt.Errorf("unexpected data type: %s", dataType)
-	}
+	err := func() error {
+		dataType, dataLenStr := dataHeader[:1], dataHeader[1:]
+		if dataType != prefixArray {
+			return fmt.Errorf("unexpected data type: %s", dataType)
+		}
 
-	dataLen, err := strconv.Atoi(dataLenStr)
+		dataLen, err := strconv.Atoi(dataLenStr)
+		if err != nil {
+			return fmt.Errorf("unexpected data length. err: %s", err.Error())
+		}
+
+		expectLen, actualLen := 2*dataLen+2, len(strList)
+		if actualLen != expectLen {
+			return fmt.Errorf("unexpected data length. expected: %d, actual: %d", expectLen, actualLen)
+		}
+
+		if _, valid := validCmd[cmd]; !valid {
+			return fmt.Errorf("invalid command. %s", cmd)
+		}
+
+		return nil
+	}()
 	if err != nil {
-		return nil, fmt.Errorf("unexpected data length. err: %s", err.Error())
+		return nil, fmt.Errorf("rrong command usage. err: %s", err.Error())
 	}
 
-	expectLen, actualLen := 2*dataLen, len(strList)
-	if actualLen != expectLen {
-		return nil, fmt.Errorf("unexpected data length. expected: %d, actual: %d", expectLen, actualLen)
-	}
+	var (
+		argsStr = ""
+		argsLen = 0
+	)
+	if len(strList) > 2 {
+		var (
+			argList  = strList[3:]
+			startArg = argList[0]
+		)
 
-	args := make([]string, dataLen)
-	for i := 1; i < len(strList); i += 2 {
-		args[i/2] = strList[i]
-	}
-
-	cmd := strings.ToUpper(args[0])
-	validCmd := map[string]struct{}{
-		commandPing: {},
-		commandEcho: {},
-	}
-
-	if _, valid := validCmd[cmd]; !valid {
-		return nil, fmt.Errorf("invalid command. %s", cmd)
+		if startArg != "" {
+			argsStr = strings.Join(argList, delimiter)
+			argsLen = len(argList) / 2
+		}
 	}
 
 	return &command{
-		cmd:  cmd,
-		args: args[1:],
+		cmd:     cmd,
+		argsStr: argsStr,
+		argsLen: argsLen,
 	}, nil
 }

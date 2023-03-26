@@ -13,7 +13,6 @@ func serve(conn net.Conn) {
 	defer conn.Close()
 
 	for {
-		// ToDO: analyze request bytes
 		b := make([]byte, 1024)
 		_, err := conn.Read(b)
 		if err != nil {
@@ -24,7 +23,19 @@ func serve(conn net.Conn) {
 			os.Exit(1)
 		}
 
-		_, err = conn.Write(resp.SimpleStrings("PONG"))
+		cmd, err := resp.ParseCommand(b)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		res, err := cmd.Response()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		_, err = conn.Write(res)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
