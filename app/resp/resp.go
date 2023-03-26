@@ -1,9 +1,5 @@
 package resp
 
-import (
-	"strings"
-)
-
 type prefix string
 
 const (
@@ -17,5 +13,5 @@ const (
 var delimiter = "\r\n"
 
 func SimpleStrings(str string) []byte {
-	return []byte(strings.Join([]string{prefixSimpleStrings, str}, delimiter) + delimiter)
+	return []byte(prefixSimpleStrings + str + delimiter)
 }

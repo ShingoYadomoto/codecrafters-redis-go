@@ -9,7 +9,6 @@ import (
 )
 
 func serve(conn net.Conn) {
-	fmt.Println("SERVE1")
 	defer conn.Close()
 
 	// ToDO: analyze request bytes
